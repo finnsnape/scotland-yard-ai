@@ -28,14 +28,27 @@ public class AquaAI implements Ai {
 
 	public Move pickBestMove(Board board, ImmutableList<Move> moves) {
 		Move bestMove = null;
-		int bestScore = -100;
+		int highScore = -1000;
+		int lowScore = 1000;
+
 		for (Move moveMade : moves) { // get the move with the best score (higher = better)
-			int score = scoreBoard(board, moveMade);
-			if (score > bestScore) { // check if better than best
-				bestScore = score;
-				bestMove = moveMade;
+
+			if (moveMade.commencedBy().isMrX()) {
+				int score = scoreBoard(board, moveMade);
+				if (score > highScore) { // check if better than best
+					highScore = score;
+					bestMove = moveMade;
+				}
+			}
+			else{
+				int score = scoreBoard(board,moveMade);
+				if(score < lowScore){
+					lowScore = score;
+					bestMove = moveMade;
+				}
 			}
 		}
+
 
 		return bestMove;
 	}
