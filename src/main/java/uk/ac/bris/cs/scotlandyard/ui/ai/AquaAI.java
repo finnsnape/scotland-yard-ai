@@ -1,11 +1,8 @@
 package uk.ac.bris.cs.scotlandyard.ui.ai;
 
 import java.util.HashMap;
-import java.util.List;
 import java.util.Optional;
-import java.util.Random;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.annotation.Nonnull;
 
@@ -21,7 +18,6 @@ public class AquaAI implements Ai {
 	@Nonnull @Override public Move pickMove(
 			@Nonnull Board board,
 			Pair<Long, TimeUnit> timeoutPair) {
-		// returns a random move, replace with your own implementation
 		var moves = board.getAvailableMoves().asList();
 		Move bestMove = pickBestMove(board, moves);
 		System.out.println(bestMove);
@@ -42,10 +38,10 @@ public class AquaAI implements Ai {
 
 	public int scoreBoard(Board board, Move moveMade) {
 		int newMrXLocation;
-		if (moveMade instanceof Move.SingleMove) { // get destination of MrX's single move
+		if (moveMade instanceof Move.SingleMove) { // get destination if single move made
 			newMrXLocation = ((Move.SingleMove) moveMade).destination;
 		}
-		else { // get destination of MrX's double move
+		else { // get destination if double move made
 			newMrXLocation = ((Move.DoubleMove) moveMade).destination2;
 		}
 
@@ -57,13 +53,11 @@ public class AquaAI implements Ai {
 			if (!player.isDetective()) continue; // exclude mrX
 			detectiveLocation = board.getDetectiveLocation((Piece.Detective) player); // get location of detective
 			if (detectiveLocation.isEmpty()) { // check to be sure we have a location, this shouldn't happen
-				System.out.println("No detective location found.");
-				continue;
+				throw new IllegalArgumentException("No detective location found.");
 			}
 			detectiveLocations.put(player, detectiveLocation); // add location of this detective
 			averageDistanceFromDetectives += Math.abs(newMrXLocation - detectiveLocation.get()); // get absolute value of naive distance from mrX (after move made) to this detective
 		}
-		averageDistanceFromDetectives = averageDistanceFromDetectives / (board.getPlayers().size() - 1); // calculate average of all distances
-		return averageDistanceFromDetectives;
+		return averageDistanceFromDetectives / (board.getPlayers().size() - 1); // divide by number of detectives
 	}
 }
