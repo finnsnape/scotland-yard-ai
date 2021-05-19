@@ -10,6 +10,8 @@ import javax.annotation.Nonnull;
 
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.graph.MutableValueGraph;
+import com.google.common.graph.ValueGraphBuilder;
 import io.atlassian.fugue.Pair;
 import uk.ac.bris.cs.scotlandyard.model.*;
 
@@ -17,45 +19,24 @@ public class AquaAI implements Ai {
 
 	@Nonnull @Override public String name() { return "AquaAI"; }
 
-	@Nonnull @Override public Move pickMove(
-			@Nonnull Board board,
-			Pair<Long, TimeUnit> timeoutPair) {
+	@Nonnull @Override public Move pickMove(@Nonnull Board board, Pair<Long, TimeUnit> timeoutPair) {
 		var moves = board.getAvailableMoves().asList();
-		Move bestMove = pickBestMove(board, moves);
-		System.out.println(bestMove);
-		return bestMove;
+		//Move bestMove = pickBestMove(board, moves);
+		MutableValueGraph stateGraph = generateGraph(board);
+		return moves.get(0);
 	}
 
-	public Move pickBestMove(Board board, ImmutableList<Move> moves) {
-		Move bestMove = null;
-		int highScore = -1000;
-		int lowScore = 1000;
-
-		for (Move moveMade : moves) { // get the move with the best score (higher = better)
-
-			if (moveMade.commencedBy().isMrX()) {
-				int score = scoreBoard(board, moveMade);
-				if (score > highScore) { // check if better than best
-					highScore = score;
-					bestMove = moveMade;
-				}
-			}
-			else{
-				int score = scoreBoard(board,moveMade);
-				if(score < lowScore){
-					lowScore = score;
-					bestMove = moveMade;
-				}
-			}
-		}
-
-
-		return bestMove;
+	public Move pickBestMove(MutableValueGraph stateGraph) {
+		/*
+		idea is to go through the graph and find the path that results in the highest overall total score (sum of the edges)
+		we can then retrieve the moves we need to make with node.moveMade
+		 */
+		return null;
 	}
 
-	public int scoreBoard(Board board, Move moveMade) {
-		int mrXSourceLocation = moveMade.source();
+	public int scoreState(Board.GameState gameState, Move moveMade) {
 		int newMrXLocation;
+		int score;
 		if (moveMade instanceof Move.SingleMove) { // get destination if single move made
 			newMrXLocation = ((Move.SingleMove) moveMade).destination;
 		}
@@ -63,13 +44,8 @@ public class AquaAI implements Ai {
 			newMrXLocation = ((Move.DoubleMove) moveMade).destination2;
 		}
 
-		boolean isDetectiveNearby = false; // Save doublemove when there's no detective nearby at the original place
+		var players = gameState.getPlayers();
 
-		Set <Integer> adjacentNodes = new HashSet<>();
-		adjacentNodes.addAll(board.getSetup().graph.adjacentNodes(newMrXLocation)); // adjacentNodes after move
-		int score = 0;
-
-		var players = board.getPlayers();
 		HashMap<Piece, Optional<Integer>> detectiveLocations = new HashMap<>();
 		Optional<Integer> detectiveLocation;
 		int averageDistanceFromDetectives = 0;
@@ -78,26 +54,40 @@ public class AquaAI implements Ai {
 
 		for (Piece player : players) {
 			if (!player.isDetective()) continue; // exclude mrX
-			detectiveLocation = board.getDetectiveLocation((Piece.Detective) player); // get location of detective
+			detectiveLocation = gameState.getDetectiveLocation((Piece.Detective) player); // get location of detective
 			if (detectiveLocation.isEmpty()) { // check to be sure we have a location, this shouldn't happen
 				throw new IllegalArgumentException("No detective location found.");
 			}
-			if(board.getSetup().graph.adjacentNodes(detectiveLocation.get()).contains(mrXSourceLocation)){
-				isDetectiveNearby = true; // check if there's detective nearby
-			}
-			if(board.getSetup().graph.adjacentNodes(detectiveLocation.get()).contains(newMrXLocation)){
-				score = score - 1; // check how many detectives are close to mrX after the move
+			if (detectiveLocation.get() == newMrXLocation) {
+				return 0; // moving here would lose mrX the game
+
 			}
 			detectiveLocations.put(player, detectiveLocation); // add location of this detective
 			averageDistanceFromDetectives += Math.abs(newMrXLocation - detectiveLocation.get()); // get absolute value of naive distance from mrX (after move made) to this detective
 		}
 
+		score = averageDistanceFromDetectives / (gameState.getPlayers().size() - 1); // divide by number of detectives
+		return score;
+	}
 
-		System.out.println(isDetectiveNearby);
-		System.out.println(averageDistanceFromDetectives / (board.getPlayers().size() - 1));
+	public MutableValueGraph generateGraph(Board board) {
+		/*
+		this should work (recursively?) for a given number of layers
+		 */
+		Board.GameState gameState = (Board.GameState) board;
+		Board.GameState gameStateTemp;
+		MutableValueGraph<GraphNode, Integer> stateGraph = ValueGraphBuilder.directed().build();
+		ImmutableList<Move> moves = gameState.getAvailableMoves().asList();
+		GraphNode topNode = new GraphNode(gameState, null);
+		GraphNode tempNode;
+		int score;
+		for (Move move : moves) {
+			score = scoreState(gameState, move); // score the move we want to make
+			gameStateTemp = gameState.advance(move); // establish the new gamestate after move has been made
+			tempNode = new GraphNode(gameStateTemp, move); // add new gamestate and movemade to node
+			stateGraph.putEdgeValue(topNode, tempNode, score); // add node and score to the graph
+		}
+		return stateGraph;
 
-		if ((moveMade instanceof Move.DoubleMove) && !isDetectiveNearby) return 0; // Save doublemove when there's no detective nearby
-		else if(score < 0) return score; // this move would be negative if there's detective nearby after move
-		else return averageDistanceFromDetectives / (board.getPlayers().size() - 1); // divide by number of detectives
 	}
 }
