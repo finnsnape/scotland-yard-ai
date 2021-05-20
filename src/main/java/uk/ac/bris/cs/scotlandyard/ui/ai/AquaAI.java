@@ -1,7 +1,6 @@
 package uk.ac.bris.cs.scotlandyard.ui.ai;
 
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
@@ -10,6 +9,7 @@ import javax.annotation.Nonnull;
 
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.graph.MutableValueGraph;
 import com.google.common.graph.ValueGraphBuilder;
 import io.atlassian.fugue.Pair;
@@ -59,13 +59,10 @@ public class AquaAI implements Ai {
 			newMrXLocation = ((Move.DoubleMove) moveMade).destination2;
 		}
 
-		var players = gameState.getPlayers();
-
+		ImmutableSet<Piece> players = gameState.getPlayers();
 		HashMap<Piece, Optional<Integer>> detectiveLocations = new HashMap<>();
 		Optional<Integer> detectiveLocation;
 		int averageDistanceFromDetectives = 0;
-
-
 
 		for (Piece player : players) {
 			if (!player.isDetective()) continue; // exclude mrX
