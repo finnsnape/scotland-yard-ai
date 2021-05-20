@@ -44,6 +44,7 @@ public class AquaAI implements Ai {
 				bestScore = nodeScore;
 			}
 		}
+
 		return bestMove;
 	}
 
@@ -71,7 +72,7 @@ public class AquaAI implements Ai {
 		ImmutableSet<Piece> players = gameState.getPlayers();
 		HashMap<Piece, Optional<Integer>> detectiveLocations = new HashMap<>();
 		Optional<Integer> detectiveLocation;
-		int averageDistanceFromDetectives = 0;
+		int DistanceFromDetectives = 0;
 
 		for (Piece player : players) {
 			if (!player.isDetective()) continue; // exclude mrX
@@ -85,17 +86,19 @@ public class AquaAI implements Ai {
 			if(gameState.getSetup().graph.adjacentNodes(detectiveLocation.get()).contains(newMrXLocation)){
 				score = score - 1; // check how many detectives are close to mrX after the move
 			}
-			if (detectiveLocation.get() == newMrXLocation) {
-				return 0; // moving here would lose mrX the game
 
-			}
 			detectiveLocations.put(player, detectiveLocation); // add location of this detective
-			averageDistanceFromDetectives += Math.abs(newMrXLocation - detectiveLocation.get()); // get absolute value of naive distance from mrX (after move made) to this detective
+			DistanceFromDetectives += Math.abs(newMrXLocation - detectiveLocation.get()); // get absolute value of naive distance from mrX (after move made) to this detective
 		}
+		int averageDistanceFromDetectives = DistanceFromDetectives / (gameState.getPlayers().size() - 1);// divide by number of detectives
+		//choose a move that has more freedom
+		averageDistanceFromDetectives += (gameState.getSetup().graph.adjacentNodes(newMrXLocation).size() * 10);
+
+
 
 		if(score < 0) return score; // this move would be negative if there's detective nearby after move
 		else if ((moveMade instanceof Move.DoubleMove) && !isDetectiveNearby) return 0; // Save doublemove when there's no detective nearby
-		else return averageDistanceFromDetectives / (gameState.getPlayers().size() - 1); // divide by number of detectives
+		else return averageDistanceFromDetectives;
 
 	}
 
@@ -108,6 +111,7 @@ public class AquaAI implements Ai {
 		Board.GameState gameStateTemp;
 		MutableValueGraph<GraphNode, Integer> stateGraph = ValueGraphBuilder.directed().build();
 		ImmutableList<Move> moves = gameState.getAvailableMoves().asList();
+
 		GraphNode topNode = new GraphNode(gameState, null);
 		GraphNode tempNode;
 		int score;
