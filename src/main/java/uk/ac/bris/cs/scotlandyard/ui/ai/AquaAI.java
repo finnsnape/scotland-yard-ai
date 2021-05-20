@@ -1,6 +1,7 @@
 package uk.ac.bris.cs.scotlandyard.ui.ai;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
@@ -59,9 +60,13 @@ public class AquaAI implements Ai {
 		}
 
 		var players = gameState.getPlayers();
+
 		HashMap<Piece, Optional<Integer>> detectiveLocations = new HashMap<>();
 		Optional<Integer> detectiveLocation;
 		int averageDistanceFromDetectives = 0;
+
+
+
 		for (Piece player : players) {
 			if (!player.isDetective()) continue; // exclude mrX
 			detectiveLocation = gameState.getDetectiveLocation((Piece.Detective) player); // get location of detective
@@ -70,10 +75,12 @@ public class AquaAI implements Ai {
 			}
 			if (detectiveLocation.get() == newMrXLocation) {
 				return 0; // moving here would lose mrX the game
+
 			}
 			detectiveLocations.put(player, detectiveLocation); // add location of this detective
 			averageDistanceFromDetectives += Math.abs(newMrXLocation - detectiveLocation.get()); // get absolute value of naive distance from mrX (after move made) to this detective
 		}
+
 		score = averageDistanceFromDetectives / (gameState.getPlayers().size() - 1); // divide by number of detectives
 		return score;
 	}
@@ -97,5 +104,6 @@ public class AquaAI implements Ai {
 			stateGraph.putEdgeValue(topNode, tempNode, score); // add node and score to the graph
 		}
 		return stateGraph;
+
 	}
 }
