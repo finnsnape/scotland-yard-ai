@@ -1,6 +1,7 @@
 package uk.ac.bris.cs.scotlandyard.ui.ai;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
@@ -35,7 +36,7 @@ public class AquaAI implements Ai {
 		GraphNode topNode = new GraphNode((Board.GameState) board, null);
 		Set<GraphNode> nextNodes = stateGraph.successors(topNode);
 		Move bestMove = null;
-		int bestScore = 0;
+		int bestScore = -100;
 		for (GraphNode node : nextNodes) { // find the node which has the highest score
 			Integer nodeScore = (Integer) stateGraph.edgeValue(topNode, node).get();
 			if (nodeScore > bestScore) {
@@ -50,14 +51,22 @@ public class AquaAI implements Ai {
 		/*
 		TODO: use a less naive approach
 		 */
+		int mrXSourceLocation = moveMade.source(); //mrx starting location
+		boolean isDetectiveNearby = false; // Save doublemove when there's no detective nearby at the original place
+
 		int newMrXLocation;
-		int score;
+		int score = 0;
+
 		if (moveMade instanceof Move.SingleMove) { // get destination if single move made
 			newMrXLocation = ((Move.SingleMove) moveMade).destination;
 		}
 		else { // get destination if double move made
 			newMrXLocation = ((Move.DoubleMove) moveMade).destination2;
 		}
+
+		Set <Integer> adjacentNodes = new HashSet<>();
+		adjacentNodes.addAll(gameState.getSetup().graph.adjacentNodes(newMrXLocation)); // adjacentNodes after move
+
 
 		ImmutableSet<Piece> players = gameState.getPlayers();
 		HashMap<Piece, Optional<Integer>> detectiveLocations = new HashMap<>();
@@ -70,6 +79,12 @@ public class AquaAI implements Ai {
 			if (detectiveLocation.isEmpty()) { // check to be sure we have a location, this shouldn't happen
 				throw new IllegalArgumentException("No detective location found.");
 			}
+			if(gameState.getSetup().graph.adjacentNodes(detectiveLocation.get()).contains(mrXSourceLocation)){
+				isDetectiveNearby = true; // check if there's detective nearby before moving
+			}
+			if(gameState.getSetup().graph.adjacentNodes(detectiveLocation.get()).contains(newMrXLocation)){
+				score = score - 1; // check how many detectives are close to mrX after the move
+			}
 			if (detectiveLocation.get() == newMrXLocation) {
 				return 0; // moving here would lose mrX the game
 
@@ -78,8 +93,10 @@ public class AquaAI implements Ai {
 			averageDistanceFromDetectives += Math.abs(newMrXLocation - detectiveLocation.get()); // get absolute value of naive distance from mrX (after move made) to this detective
 		}
 
-		score = averageDistanceFromDetectives / (gameState.getPlayers().size() - 1); // divide by number of detectives
-		return score;
+		if(score < 0) return score; // this move would be negative if there's detective nearby after move
+		else if ((moveMade instanceof Move.DoubleMove) && !isDetectiveNearby) return 0; // Save doublemove when there's no detective nearby
+		else return averageDistanceFromDetectives / (gameState.getPlayers().size() - 1); // divide by number of detectives
+
 	}
 
 	public MutableValueGraph generateGraph(Board board) {
