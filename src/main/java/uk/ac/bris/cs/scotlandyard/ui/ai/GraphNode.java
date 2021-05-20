@@ -3,6 +3,8 @@ package uk.ac.bris.cs.scotlandyard.ui.ai;
 import uk.ac.bris.cs.scotlandyard.model.Board;
 import uk.ac.bris.cs.scotlandyard.model.Move;
 
+import java.util.Objects;
+
 public final class GraphNode {
     private final Board.GameState gameState;
     private final Move moveMade;
@@ -24,18 +26,24 @@ public final class GraphNode {
     public boolean equals(Object other) {
         if (other instanceof GraphNode) {
             GraphNode that = (GraphNode) other;
-            return this.gameState.equals(that.gameState) && this.moveMade.equals(that.moveMade);
+            if (moveMade != null) { // check both if moveMade isn't null (top node)
+                return this.gameState.equals(that.gameState) && this.moveMade.equals(that.moveMade);
+            }
+            else { // if null then only compare gameState
+                return this.gameState.equals(that.gameState);
+            }
+
         }
         return false;
     }
 
     @Override
     public int hashCode() {
-        return gameState.hashCode() + moveMade.hashCode();
+        return Objects.hash(gameState, moveMade);
     }
 
     @Override
     public String toString() {
-        return gameState.toString() + moveMade.toString();
+        return gameState.toString() + moveMade;
     }
 }

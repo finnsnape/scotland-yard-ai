@@ -2,6 +2,7 @@ package uk.ac.bris.cs.scotlandyard.ui.ai;
 
 import java.util.HashMap;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 import javax.annotation.Nonnull;
@@ -18,21 +19,36 @@ public class AquaAI implements Ai {
 	@Nonnull @Override public String name() { return "AquaAI"; }
 
 	@Nonnull @Override public Move pickMove(@Nonnull Board board, Pair<Long, TimeUnit> timeoutPair) {
-		var moves = board.getAvailableMoves().asList();
-		//Move bestMove = pickBestMove(board, moves);
 		MutableValueGraph stateGraph = generateGraph(board);
-		return moves.get(0);
+		Move bestMove = pickBestMove(stateGraph, board);
+		return bestMove;
 	}
 
-	public Move pickBestMove(MutableValueGraph stateGraph) {
+	public Move pickBestMove(MutableValueGraph stateGraph, Board board) {
 		/*
 		idea is to go through the graph and find the path that results in the highest overall total score (sum of the edges)
-		we can then retrieve the moves we need to make with node.moveMade
+		we can then retrieve the move we need to make with node.moveMade
+
+		TODO: currently only takes the first node, but it needs to work recursively and then return the move that leads us to the best outcome
 		 */
-		return null;
+		GraphNode topNode = new GraphNode((Board.GameState) board, null);
+		Set<GraphNode> nextNodes = stateGraph.successors(topNode);
+		Move bestMove = null;
+		int bestScore = 0;
+		for (GraphNode node : nextNodes) { // find the node which has the highest score
+			Integer nodeScore = (Integer) stateGraph.edgeValue(topNode, node).get();
+			if (nodeScore > bestScore) {
+				bestMove = node.moveMade();
+				bestScore = nodeScore;
+			}
+		}
+		return bestMove;
 	}
 
 	public int scoreState(Board.GameState gameState, Move moveMade) {
+		/*
+		TODO: use a less naive approach
+		 */
 		int newMrXLocation;
 		int score;
 		if (moveMade instanceof Move.SingleMove) { // get destination if single move made
@@ -65,6 +81,7 @@ public class AquaAI implements Ai {
 	public MutableValueGraph generateGraph(Board board) {
 		/*
 		this should work (recursively?) for a given number of layers
+		e.g. evaluate MrX's possible moves and then all possible detective moves as a result, then all possible detective moves again
 		 */
 		Board.GameState gameState = (Board.GameState) board;
 		Board.GameState gameStateTemp;
