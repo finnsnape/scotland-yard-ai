@@ -1,6 +1,7 @@
 package uk.ac.bris.cs.scotlandyard.ui.ai;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
@@ -35,7 +36,7 @@ public class ShallowMind implements Ai {
 		GraphNode topNode = new GraphNode((Board.GameState) board, null);
 		Set<GraphNode> nextNodes = stateGraph.successors(topNode);
 		Move bestMove = null;
-		int bestScore = 0;
+		int bestScore = -100;
 		for (GraphNode node : nextNodes) { // find the node which has the highest score
 			Integer nodeScore = (Integer) stateGraph.edgeValue(topNode, node).get();
 			if (nodeScore > bestScore) {
@@ -43,6 +44,7 @@ public class ShallowMind implements Ai {
 				bestScore = nodeScore;
 			}
 		}
+
 		return bestMove;
 	}
 
@@ -50,8 +52,12 @@ public class ShallowMind implements Ai {
 		/*
 		TODO: use a less naive approach
 		 */
+		int mrXSourceLocation = moveMade.source(); //mrx starting location
+		boolean isDetectiveNearby = false; // Save doublemove when there's no detective nearby at the original place
+
 		int newMrXLocation;
-		int score;
+		int score = 0;
+
 		if (moveMade instanceof Move.SingleMove) { // get destination if single move made
 			newMrXLocation = ((Move.SingleMove) moveMade).destination;
 		}
@@ -59,10 +65,14 @@ public class ShallowMind implements Ai {
 			newMrXLocation = ((Move.DoubleMove) moveMade).destination2;
 		}
 
+		Set <Integer> adjacentNodes = new HashSet<>();
+		adjacentNodes.addAll(gameState.getSetup().graph.adjacentNodes(newMrXLocation)); // adjacentNodes after move
+
+
 		ImmutableSet<Piece> players = gameState.getPlayers();
 		HashMap<Piece, Optional<Integer>> detectiveLocations = new HashMap<>();
 		Optional<Integer> detectiveLocation;
-		int averageDistanceFromDetectives = 0;
+		int DistanceFromDetectives = 0;
 
 		for (Piece player : players) {
 			if (!player.isDetective()) continue; // exclude mrX
@@ -70,16 +80,26 @@ public class ShallowMind implements Ai {
 			if (detectiveLocation.isEmpty()) { // check to be sure we have a location, this shouldn't happen
 				throw new IllegalArgumentException("No detective location found.");
 			}
-			if (detectiveLocation.get() == newMrXLocation) {
-				return 0; // moving here would lose mrX the game
-
+			if(gameState.getSetup().graph.adjacentNodes(detectiveLocation.get()).contains(mrXSourceLocation)){
+				isDetectiveNearby = true; // check if there's detective nearby before moving
 			}
-			detectiveLocations.put(player, detectiveLocation); // add location of this detective
-			averageDistanceFromDetectives += Math.abs(newMrXLocation - detectiveLocation.get()); // get absolute value of naive distance from mrX (after move made) to this detective
-		}
+			if(gameState.getSetup().graph.adjacentNodes(detectiveLocation.get()).contains(newMrXLocation)){
+				score = score - 1; // check how many detectives are close to mrX after the move
+			}
 
-		score = averageDistanceFromDetectives / (gameState.getPlayers().size() - 1); // divide by number of detectives
-		return score;
+			detectiveLocations.put(player, detectiveLocation); // add location of this detective
+			DistanceFromDetectives += Math.abs(newMrXLocation - detectiveLocation.get()); // get absolute value of naive distance from mrX (after move made) to this detective
+		}
+		int averageDistanceFromDetectives = DistanceFromDetectives / (gameState.getPlayers().size() - 1);// divide by number of detectives
+		//choose a move that has more freedom
+		averageDistanceFromDetectives += (gameState.getSetup().graph.adjacentNodes(newMrXLocation).size() * 10);
+
+
+
+		if(score < 0) return score; // this move would be negative if there's detective nearby after move
+		else if ((moveMade instanceof Move.DoubleMove) && !isDetectiveNearby) return 0; // Save doublemove when there's no detective nearby
+		else return averageDistanceFromDetectives;
+
 	}
 
 	public MutableValueGraph generateGraph(Board board) {
@@ -91,6 +111,7 @@ public class ShallowMind implements Ai {
 		Board.GameState gameStateTemp;
 		MutableValueGraph<GraphNode, Integer> stateGraph = ValueGraphBuilder.directed().build();
 		ImmutableList<Move> moves = gameState.getAvailableMoves().asList();
+
 		GraphNode topNode = new GraphNode(gameState, null);
 		GraphNode tempNode;
 		int score;
