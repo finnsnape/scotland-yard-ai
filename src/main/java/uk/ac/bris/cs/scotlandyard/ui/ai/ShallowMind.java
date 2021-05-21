@@ -15,9 +15,9 @@ import com.google.common.graph.ValueGraphBuilder;
 import io.atlassian.fugue.Pair;
 import uk.ac.bris.cs.scotlandyard.model.*;
 
-public class AquaAI implements Ai {
+public class ShallowMind implements Ai {
 
-	@Nonnull @Override public String name() { return "AquaAI"; }
+	@Nonnull @Override public String name() { return "ShallowMind"; }
 
 	@Nonnull @Override public Move pickMove(@Nonnull Board board, Pair<Long, TimeUnit> timeoutPair) {
 		MutableValueGraph stateGraph = generateGraph(board);
